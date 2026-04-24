@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "kubeopera": {
+      "command": "/path/to/kubernetes-mcp-server",
+      "args": ["--toolsets", "kubeopera"],
+      "env": {
+        "K8S_MONITOR_BASE_URL": "http://k8s-monitor:8085",
+        "SECURITY_API_BASE_URL": "http://security-api:8086",
+        "CICD_GATEWAY_BASE_URL": "http://cicd-gateway:8087",
+        "KUBEOPERA_API_BASE_URL": "http://kubeopera-api:8080",
+        "ANOMALY_DETECTOR_BASE_URL": "http://anomaly-detector:8088",
+        "PREDICTIVE_SCALER_BASE_URL": "http://predictive-scaler:8089",
+        "INCIDENT_MANAGER_BASE_URL": "http://incident-manager:8090"
+      }
+    }
+  }
+}
