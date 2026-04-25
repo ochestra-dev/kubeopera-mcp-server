@@ -385,3 +385,61 @@ func (t *Toolset) runNodeOpsAgentTool() api.ServerTool {
 	return t.agentTool("run_node_ops_agent", "node_ops",
 		"Trigger the NodeOps agent to analyse node pool efficiency, scheduling decisions, spot market opportunities, and consolidation plans. Returns a run_id for streaming agent reasoning.")
 }
+
+// ─── Tool: get_optimization_status ───────────────────────────────────────────
+
+func (t *Toolset) optimizationStatusTool() api.ServerTool {
+	return api.ServerTool{
+		Tool: api.Tool{
+			Name:        "get_optimization_status",
+			Description: "Get the latest AI-generated cluster health score, resource optimization recommendations, and uptime from the kubeopera-ai continuous monitoring agent.",
+			InputSchema: &jsonschema.Schema{Type: "object"},
+			Annotations: api.ToolAnnotations{Title: "KubeOpera AI: Optimization Status", ReadOnlyHint: ptr.To(true), OpenWorldHint: ptr.To(true)},
+		},
+		Handler: func(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+			body, err := t.get(params.Context, t.kubeOperaAIURL+"/api/v1/status")
+			if err != nil {
+				return api.NewToolCallResult("", fmt.Errorf("get_optimization_status: %w", err)), nil
+			}
+			return api.NewToolCallResult(string(body), nil), nil
+		},
+	}
+}
+
+// ─── Tool: get_load_test_analysis ─────────────────────────────────────────────
+
+func (t *Toolset) loadTestAnalysisTool() api.ServerTool {
+	return api.ServerTool{
+		Tool: api.Tool{
+			Name:        "get_load_test_analysis",
+			Description: "Trigger an AI-powered load test analysis via kubeopera-ai. Returns p95/p99 latency assessment, resource utilisation before/after, bottleneck identification, and a numbered remediation action list.",
+			InputSchema: &jsonschema.Schema{
+				Type: "object",
+				Properties: map[string]*jsonschema.Schema{
+					"results_path": {Type: "string", Description: "Path to load test results directory (optional — uses latest if omitted)"},
+				},
+			},
+			Annotations: api.ToolAnnotations{Title: "KubeOpera AI: Load Test Analysis", ReadOnlyHint: ptr.To(false), OpenWorldHint: ptr.To(true)},
+		},
+		Handler: func(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+			p := api.WrapParams(params)
+			resultsPath := p.OptionalString("results_path", "")
+			if err := p.Err(); err != nil {
+				return api.NewToolCallResult("", fmt.Errorf("get_load_test_analysis: %w", err)), nil
+			}
+			body, err := t.post(params.Context, t.kubeOperaAIURL+"/api/v1/analyze/load-test",
+				map[string]string{"results_path": resultsPath})
+			if err != nil {
+				return api.NewToolCallResult("", fmt.Errorf("get_load_test_analysis: %w", err)), nil
+			}
+			return api.NewToolCallResult(string(body), nil), nil
+		},
+	}
+}
+
+// ─── Tool: run_load_test_agent ────────────────────────────────────────────────
+
+func (t *Toolset) runLoadTestAgentTool() api.ServerTool {
+	return t.agentTool("run_load_test_agent", "load_test_analyst",
+		"Trigger the Load Test Analyst agent to interpret load test results, identify performance bottlenecks, and generate a prioritised optimisation action list. Returns a run_id for streaming.")
+}
