@@ -43,6 +43,7 @@ type Toolset struct {
 	tracingGatewayURL         string
 	rcaEngineURL              string
 	kubeOperaAIURL            string
+	appAdvisorURL             string
 	httpClient                *http.Client
 }
 
@@ -68,6 +69,7 @@ func newToolset() *Toolset {
 		tracingGatewayURL:         envOrDefault("TRACING_GATEWAY_BASE_URL", "http://localhost:8102"),
 		rcaEngineURL:              envOrDefault("RCA_ENGINE_BASE_URL", "http://localhost:8103"),
 		kubeOperaAIURL:            envOrDefault("KUBEOPERA_AI_BASE_URL", "http://localhost:8104"),
+		appAdvisorURL:             envOrDefault("APP_ADVISOR_BASE_URL", "http://localhost:8105"),
 		httpClient:                &http.Client{Timeout: 15 * time.Second},
 	}
 }
@@ -126,6 +128,9 @@ func (t *Toolset) GetTools(_ api.Openshift) []api.ServerTool {
 		// kubeopera-ai continuous optimisation
 		t.optimizationStatusTool(),
 		t.loadTestAnalysisTool(),
+		// app advisor — per-vCluster per-app domain-aware advisor
+		t.appProfileTool(),
+		t.appAdviceTool(),
 		// Agent runners
 		t.runSREAgentTool(),
 		t.runSecurityAgentTool(),
@@ -133,6 +138,7 @@ func (t *Toolset) GetTools(_ api.Openshift) []api.ServerTool {
 		t.runIncidentAgentTool(),
 		t.runNodeOpsAgentTool(),
 		t.runLoadTestAgentTool(),
+		t.runAppAdvisorAgentTool(),
 	}
 }
 

@@ -437,9 +437,89 @@ func (t *Toolset) loadTestAnalysisTool() api.ServerTool {
 	}
 }
 
+// ─── Tool: get_app_profile ────────────────────────────────────────────────────
+
+func (t *Toolset) appProfileTool() api.ServerTool {
+	return api.ServerTool{
+		Tool: api.Tool{
+			Name:        "get_app_profile",
+			Description: "Get the domain profile for a KubeOpera application deployed in a tenant vCluster. Returns domain type (ecommerce/ml_training/api_service/data_pipeline/auth/analytics), business description, SLA target, priorities, and whether the classification was auto-detected or user-defined.",
+			InputSchema: &jsonschema.Schema{
+				Type:     "object",
+				Required: []string{"app_id"},
+				Properties: map[string]*jsonschema.Schema{
+					"app_id": {Type: "string", Description: "Application ID in namespace/name format (e.g. production/payments-api)"},
+				},
+			},
+			Annotations: api.ToolAnnotations{Title: "App Advisor: Profile", ReadOnlyHint: ptr.To(true), OpenWorldHint: ptr.To(true)},
+		},
+		Handler: func(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+			p := api.WrapParams(params)
+			appID := p.RequiredString("app_id")
+			if err := p.Err(); err != nil {
+				return api.NewToolCallResult("", fmt.Errorf("get_app_profile: %w", err)), nil
+			}
+			body, err := t.get(params.Context, t.appAdvisorURL+"/api/v1/apps/"+appID+"/profile")
+			if err != nil {
+				return api.NewToolCallResult("", fmt.Errorf("get_app_profile: %w", err)), nil
+			}
+			return api.NewToolCallResult(string(body), nil), nil
+		},
+	}
+}
+
+// ─── Tool: get_app_advice ─────────────────────────────────────────────────────
+
+func (t *Toolset) appAdviceTool() api.ServerTool {
+	return api.ServerTool{
+		Tool: api.Tool{
+			Name:        "get_app_advice",
+			Description: "Get AI-generated domain-aware advice for a specific KubeOpera application. Each advice item includes a domain_context field explaining why the recommendation matters specifically for that app's business domain (e.g. ecommerce checkout latency vs auth availability budget).",
+			InputSchema: &jsonschema.Schema{
+				Type:     "object",
+				Required: []string{"app_id"},
+				Properties: map[string]*jsonschema.Schema{
+					"app_id": {Type: "string", Description: "Application ID in namespace/name format"},
+					"status": {Type: "string", Description: "Filter by status: active|dismissed|implemented (optional)"},
+					"limit":  {Type: "integer", Description: "Max results (optional, default 10)"},
+				},
+			},
+			Annotations: api.ToolAnnotations{Title: "App Advisor: Advice", ReadOnlyHint: ptr.To(true), OpenWorldHint: ptr.To(true)},
+		},
+		Handler: func(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+			p := api.WrapParams(params)
+			appID := p.RequiredString("app_id")
+			status := p.OptionalString("status", "")
+			limit := p.OptionalInt64("limit", 10)
+			if err := p.Err(); err != nil {
+				return api.NewToolCallResult("", fmt.Errorf("get_app_advice: %w", err)), nil
+			}
+			u, _ := url.Parse(t.appAdvisorURL + "/api/v1/apps/" + appID + "/advice")
+			q := u.Query()
+			if status != "" {
+				q.Set("status", status)
+			}
+			q.Set("limit", fmt.Sprintf("%d", limit))
+			u.RawQuery = q.Encode()
+			body, err := t.get(params.Context, u.String())
+			if err != nil {
+				return api.NewToolCallResult("", fmt.Errorf("get_app_advice: %w", err)), nil
+			}
+			return api.NewToolCallResult(string(body), nil), nil
+		},
+	}
+}
+
 // ─── Tool: run_load_test_agent ────────────────────────────────────────────────
 
 func (t *Toolset) runLoadTestAgentTool() api.ServerTool {
 	return t.agentTool("run_load_test_agent", "load_test_analyst",
 		"Trigger the Load Test Analyst agent to interpret load test results, identify performance bottlenecks, and generate a prioritised optimisation action list. Returns a run_id for streaming.")
+}
+
+// ─── Tool: run_app_advisor_agent ──────────────────────────────────────────────
+
+func (t *Toolset) runAppAdvisorAgentTool() api.ServerTool {
+	return t.agentTool("run_app_advisor_agent", "app_advisor",
+		"Trigger the App Advisor agent for a specific application. The agent fetches the app's domain profile, existing advice, and live vCluster metrics, then provides domain-aware recommendations grounded in the app's business context (ecommerce, ML training, API service, data pipeline, auth, or analytics). Returns a run_id for streaming.")
 }
